@@ -4,39 +4,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZMODS 3D Console</title>
+    <title>Babylon.js Custom Playground</title>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.14/ace.js"></script> <!-- Code Editor -->
     <style>
-        /* Reset margins and paddings */
-        * {
+        html, body {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-
-        /* Full screen layout */
-        html, body {
             width: 100%;
             height: 100%;
-            overflow: hidden;
             display: flex;
             flex-direction: column;
         }
 
-        /* Editor at the bottom */
-        #editor {
-            height: 30%; /* 30% of screen height for editor */
+        #renderCanvas {
+            flex: 1;
+            display: block;
             width: 100%;
-            background: #1e1e1e;
-            color: white;
-            font-family: monospace;
         }
 
-        /* Run Button */
+        #editorContainer {
+            height: 30%; /* 30% of the viewport for the editor */
+            width: 100%;
+            background: #1e1e1e;
+        }
+
         #runButton {
             position: absolute;
-            bottom: 32%; /* Just above the editor */
+            bottom: 35%;
             left: 50%;
             transform: translateX(-50%);
             z-index: 1000;
@@ -52,82 +47,78 @@
         #runButton:hover {
             background-color: #45a049;
         }
-
-        /* Text Input */
-        #textInput {
-            position: absolute;
-            bottom: 36%; /* Above the Run Button */
-            left: 50%;
-            transform: translateX(-50%);
-            width: 50%;
-            padding: 10px;
-            font-size: 16px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-
-        /* Canvas fills remaining space */
-        #renderCanvas {
-            flex: 1;
-            display: block;
-            width: 100%;
-        }
     </style>
 </head>
 
 <body>
-    <!-- Babylon.js 3D Canvas -->
+    <!-- Babylon.js Render Canvas -->
     <canvas id="renderCanvas"></canvas>
 
-    <!-- Text Input -->
-    <input type="text" id="textInput" placeholder="Enter your text here...">
+    <!-- Code Editor -->
+    <div id="editorContainer"></div>
 
     <!-- Run Button -->
     <button id="runButton">Run Code</button>
-
-    <!-- Code Editor -->
-    <div id="editor">/* Write your custom code here! */</div>
 
     <script>
         // Setup Babylon.js Engine and Scene
         var canvas = document.getElementById("renderCanvas");
         var engine = new BABYLON.Engine(canvas, true);
-        var scene = new BABYLON.Scene(engine);
 
-        // Basic Scene Setup
-        var camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 2, Math.PI / 2, 10, BABYLON.Vector3.Zero(), scene);
-        camera.attachControl(canvas, true);
+        // Placeholder for the scene (re-created on every run)
+        var scene;
 
-        var light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
-        light.intensity = 0.7;
+        function createDefaultScene() {
+            // Basic Scene
+            scene = new BABYLON.Scene(engine);
 
-        // Add a Ground and Sphere
-        var ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 6, height: 6 }, scene);
-        var sphere = BABYLON.MeshBuilder.CreateSphere("sphere", { diameter: 2, segments: 32 }, scene);
-        sphere.position.y = 1;
+            // Camera
+            var camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 2, Math.PI / 2, 10, BABYLON.Vector3.Zero(), scene);
+            camera.attachControl(canvas, true);
 
-        // Render Loop
+            // Light
+            var light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+            light.intensity = 0.7;
+
+            // Ground and Sphere (Default Scene)
+            var ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 6, height: 6 }, scene);
+            var sphere = BABYLON.MeshBuilder.CreateSphere("sphere", { diameter: 2 }, scene);
+            sphere.position.y = 1;
+        }
+
+        // Initialize the scene with default content
+        createDefaultScene();
+
+        // Render loop
         engine.runRenderLoop(function () {
-            scene.render();
+            if (scene) {
+                scene.render();
+            }
         });
 
+        // Resize event
         window.addEventListener("resize", function () {
             engine.resize();
         });
 
-        // Code Editor using Ace
-        var editor = ace.edit("editor");
+        // Setup Ace Editor
+        var editor = ace.edit("editorContainer");
         editor.setTheme("ace/theme/monokai");
         editor.session.setMode("ace/mode/javascript");
 
-        // Default Code
+        // Default Code in the Editor
         var defaultCode = `
-            // Example: Change sphere color
-            var sphereMaterial = new BABYLON.StandardMaterial("sphereMaterial", scene);
-            sphereMaterial.diffuseColor = new BABYLON.Color3(1, 0, 0); // Red
-            sphere.material = sphereMaterial;
+            // Clear previous scene
+            scene.dispose();
+            createDefaultScene();
 
-            // Example: Add a spinning animation
+            // Custom Code: Change sphere color
+            var sphere = scene.getMeshByName("sphere");
+            var material = new BABYLON.StandardMaterial("sphereMaterial", scene);
+            material.diffuseColor = new BABYLON.Color3(0, 0, 1); // Blue
+            sphere.material = material;
+
+            // Add spinning animation to the sphere
             var animation = new BABYLON.Animation("spin", "rotation.y", 30, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
             var keys = [
                 { frame: 0, value: 0 },
@@ -136,34 +127,23 @@
             animation.setKeys(keys);
             sphere.animations.push(animation);
             scene.beginAnimation(sphere, 0, 100, true);
+
+            // Add a new box
+            var box = BABYLON.MeshBuilder.CreateBox("box", {}, scene);
+            box.position = new BABYLON.Vector3(2, 1, 0);
         `;
         editor.setValue(defaultCode, -1);
-
-        // Text Input Logic
-        var textInput = document.getElementById("textInput");
 
         // Run Button Logic
         document.getElementById("runButton").addEventListener("click", function () {
             try {
-                // Retrieve user code and execute it
+                // Get user code from the editor
                 var userCode = editor.getValue();
+
+                // Evaluate user code
                 eval(userCode);
-
-                // Retrieve text input and display it in the 3D scene
-                var userText = textInput.value;
-                if (userText.trim() !== "") {
-                    var dynamicPlane = BABYLON.MeshBuilder.CreatePlane("dynamicText", { size: 4 }, scene);
-                    dynamicPlane.position = new BABYLON.Vector3(0, 2, 0);
-
-                    var dynamicTexture = new BABYLON.DynamicTexture("dynamicTexture", 512, scene, true);
-                    dynamicTexture.drawText(userText, null, 200, "bold 40px Arial", "white", "black");
-
-                    var textMaterial = new BABYLON.StandardMaterial("textMaterial", scene);
-                    textMaterial.diffuseTexture = dynamicTexture;
-                    dynamicPlane.material = textMaterial;
-                }
             } catch (error) {
-                console.error("Error executing user code:", error);
+                console.error("Error in user code:", error);
             }
         });
     </script>
