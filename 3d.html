@@ -1,152 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Babylon.js Custom Playground</title>
-    <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.14/ace.js"></script> <!-- Code Editor -->
+    <title>3D Model Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/loaders/OBJLoader.js"></script>
     <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-        }
-
-        #renderCanvas {
-            flex: 1;
-            display: block;
-            width: 100%;
-        }
-
-        #editorContainer {
-            height: 30%; /* 30% of the viewport for the editor */
-            width: 100%;
-            background: #1e1e1e;
-        }
-
-        #runButton {
-            position: absolute;
-            bottom: 35%;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            cursor: pointer;
-            font-size: 16px;
-            border-radius: 5px;
-        }
-
-        #runButton:hover {
-            background-color: #45a049;
-        }
+        body { margin: 0; }
+        canvas { display: block; }
     </style>
 </head>
-
 <body>
-    <!-- Babylon.js Render Canvas -->
-    <canvas id="renderCanvas"></canvas>
-
-    <!-- Code Editor -->
-    <div id="editorContainer"></div>
-
-    <!-- Run Button -->
-    <button id="runButton">Run Code</button>
-
     <script>
-        // Setup Babylon.js Engine and Scene
-        var canvas = document.getElementById("renderCanvas");
-        var engine = new BABYLON.Engine(canvas, true);
+        // Scene, camera, renderer setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-        // Placeholder for the scene (re-created on every run)
-        var scene;
+        // Light
+        const light = new THREE.AmbientLight(0x404040, 2); // soft white light
+        scene.add(light);
 
-        function createDefaultScene() {
-            // Basic Scene
-            scene = new BABYLON.Scene(engine);
+        // Load 3D Model
+        const loader = new THREE.OBJLoader();
+        loader.load(
+            'path/to/your/model.obj', // Path to your .obj file
+            function (object) {
+                scene.add(object);
+                object.position.y = -50; // Adjust model position
+            },
+            function (xhr) {
+                console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+            },
+            function (error) {
+                console.error('An error occurred while loading the model:', error);
+            }
+        );
 
-            // Camera
-            var camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 2, Math.PI / 2, 10, BABYLON.Vector3.Zero(), scene);
-            camera.attachControl(canvas, true);
+        // Camera controls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        camera.position.z = 100;
 
-            // Light
-            var light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
-            light.intensity = 0.7;
-
-            // Ground and Sphere (Default Scene)
-            var ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 6, height: 6 }, scene);
-            var sphere = BABYLON.MeshBuilder.CreateSphere("sphere", { diameter: 2 }, scene);
-            sphere.position.y = 1;
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
         }
-
-        // Initialize the scene with default content
-        createDefaultScene();
-
-        // Render loop
-        engine.runRenderLoop(function () {
-            if (scene) {
-                scene.render();
-            }
-        });
-
-        // Resize event
-        window.addEventListener("resize", function () {
-            engine.resize();
-        });
-
-        // Setup Ace Editor
-        var editor = ace.edit("editorContainer");
-        editor.setTheme("ace/theme/monokai");
-        editor.session.setMode("ace/mode/javascript");
-
-        // Default Code in the Editor
-        var defaultCode = `
-            // Clear previous scene
-            scene.dispose();
-            createDefaultScene();
-
-            // Custom Code: Change sphere color
-            var sphere = scene.getMeshByName("sphere");
-            var material = new BABYLON.StandardMaterial("sphereMaterial", scene);
-            material.diffuseColor = new BABYLON.Color3(0, 0, 1); // Blue
-            sphere.material = material;
-
-            // Add spinning animation to the sphere
-            var animation = new BABYLON.Animation("spin", "rotation.y", 30, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
-            var keys = [
-                { frame: 0, value: 0 },
-                { frame: 100, value: Math.PI * 2 }
-            ];
-            animation.setKeys(keys);
-            sphere.animations.push(animation);
-            scene.beginAnimation(sphere, 0, 100, true);
-
-            // Add a new box
-            var box = BABYLON.MeshBuilder.CreateBox("box", {}, scene);
-            box.position = new BABYLON.Vector3(2, 1, 0);
-        `;
-        editor.setValue(defaultCode, -1);
-
-        // Run Button Logic
-        document.getElementById("runButton").addEventListener("click", function () {
-            try {
-                // Get user code from the editor
-                var userCode = editor.getValue();
-
-                // Evaluate user code
-                eval(userCode);
-            } catch (error) {
-                console.error("Error in user code:", error);
-            }
-        });
+        animate();
     </script>
 </body>
-
 </html>
